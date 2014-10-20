@@ -439,7 +439,12 @@ class TestMessage(TestCase):
         msg = Message(subject=make_lazy_string(lambda a: a, u"sübject"),
                       sender='from@example.com',
                       recipients=["to@example.com"])
-        self.assertIn('=?utf-8?q?s=C3=BCbject?=', msg.as_string())
+        self.assertIn(b'=?utf-8?q?s=C3=BCbject?=', msg.as_bytes())
+
+        msg = Message(subject=make_lazy_string(lambda a: a, u"[Foo Bar] Voici vos paramètres d'accès à"),
+                      sender='from@example.com',
+                      recipients=["to@example.com"])
+        self.assertIn(b'=?utf-8?b?W0ZvbyBCYXJdIFZvaWNpIHZvcyBwYXJhbcOodHJlcyBkJ2FjY8OocyDDoA==?=', msg.as_bytes())
 
     def test_extra_headers(self):
         msg = Message(sender="from@example.com",
@@ -710,3 +715,7 @@ class TestConnection(TestCase):
             with mock.patch.object(self.mail, "use_tls", True):
                 self.assertTrue(self.mail.use_tls)
                 self.assertRaises(smtplib.SMTPResponseException, Connection(self.mail).configure_host)
+
+
+if __name__ == '__main__':
+    unittest.main()
