@@ -113,7 +113,10 @@ def sanitize_address(addr, encoding='utf-8'):
     except UnicodeEncodeError:  # IDN
         if '@' in addr:
             localpart, domain = addr.split('@', 1)
-            localpart = str(Header(localpart, encoding))
+            try:
+                localpart = Header(localpart, encoding).encode()
+            except UnicodeEncodeError:
+                localpart = Header(localpart, 'utf-8').encode()
             domain = domain.encode('idna').decode('ascii')
             addr = '@'.join([localpart, domain])
         else:
