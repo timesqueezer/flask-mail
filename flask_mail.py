@@ -92,8 +92,8 @@ def force_text(s, encoding='utf-8', errors='strict'):
         if not isinstance(s, Exception):
             raise FlaskMailUnicodeDecodeError(s, *e.args)
         else:
-            s = ' '.join([force_text(arg, encoding, strings_only,
-                                     errors) for arg in s])
+            s = ' '.join([force_text(arg, encoding, errors)
+                          for arg in s])
     return s
 
 
