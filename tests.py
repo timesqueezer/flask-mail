@@ -342,7 +342,7 @@ class TestMessage(TestCase):
             parsed = email.message_from_string(msg.as_string())
             self.assertIn(
                 'Content-Disposition: attachment; filename="unicode . .txt"',
-                msg.as_string())
+                parsed.as_string())
 
     def test_html_message(self):
         html_text = "<p>Hello World</p>"
@@ -617,7 +617,7 @@ class TestMail(TestCase):
             self.assertEqual(len(outbox), 1)
             sent_msg = outbox[0]
             default_sender = self.app.extensions['mail'].default_sender
-            self.assertEqual(msg.sender, default_sender)
+            self.assertEqual(sent_msg.sender, default_sender)
 
     def test_send_message(self):
         with self.mail.record_messages() as outbox:
