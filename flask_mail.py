@@ -162,12 +162,11 @@ class Connection(object):
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
-        if self.host:
+        if self.host and getattr(self.host, 'sock', None):
             try:
                 self.host.quit()
             except smtplib.SMTPServerDisconnected:
                 pass
-
 
     def configure_host(self):
         if self.mail.use_ssl:
