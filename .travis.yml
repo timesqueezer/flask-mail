@@ -16,7 +16,7 @@ install:
   - pip install flake8 --quiet
 
 before_script:
-  - flake8 .
+  - "python -V 2>&1 | grep -qF 'Python 2.6' || flake8 ."
 
 script:
   - nosetests
