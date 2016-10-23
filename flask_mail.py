@@ -11,42 +11,44 @@
 
 from __future__ import with_statement
 
-__version__ = '0.9.2'
-
 import re
-import blinker
 import smtplib
 import sys
 import time
 import unicodedata
 
+from contextlib import contextmanager
 from email import charset
 from email.encoders import encode_base64
+from email.header import Header
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.header import Header
-from email.utils import formatdate, formataddr, make_msgid, parseaddr
-from contextlib import contextmanager
+from email.utils import formataddr, formatdate, make_msgid, parseaddr
 
+import blinker
 from flask import current_app
-
-PY3 = sys.version_info[0] == 3
-
-PY34 = PY3 and sys.version_info[1] >= 4
-
-if PY3:
-    string_types = str,
-    text_type = str
-else:
-    string_types = basestring,
-    text_type = unicode
 
 try:
     from email import policy
     message_policy = policy.SMTP
 except ImportError:
     message_policy = None
+
+
+__version__ = '0.9.3'
+
+
+PY3 = sys.version_info[0] == 3
+PY34 = PY3 and sys.version_info[1] >= 4
+
+if PY3:
+    string_types = str,
+    text_type = str
+else:
+    string_types = basestring,  # noqa: F821
+    text_type = unicode         # noqa: F821
+
 
 charset.add_charset('utf-8', charset.SHORTEST, None, 'utf-8')
 
@@ -58,7 +60,9 @@ class FlaskMailUnicodeDecodeError(UnicodeDecodeError):
 
     def __str__(self):
         original = UnicodeDecodeError.__str__(self)
-        return '%s. You passed in %r (%s)' % (original, self.obj, type(self.obj))
+        return '%s. You passed in %r (%s)' % (
+            original, self.obj, type(self.obj)
+        )
 
 
 def force_text(s, encoding='utf-8', errors='strict'):
@@ -89,8 +93,9 @@ def force_text(s, encoding='utf-8', errors='strict'):
             raise FlaskMailUnicodeDecodeError(s, *e.args)
         else:
             s = ' '.join([force_text(arg, encoding, strings_only,
-                    errors) for arg in s])
+                                     errors) for arg in s])
     return s
+
 
 def sanitize_subject(subject, encoding='utf-8'):
     try:
@@ -101,6 +106,7 @@ def sanitize_subject(subject, encoding='utf-8'):
         except UnicodeEncodeError:
             subject = Header(subject, 'utf-8').encode()
     return subject
+
 
 def sanitize_address(addr, encoding='utf-8'):
     if isinstance(addr, string_types):
@@ -147,6 +153,7 @@ def _has_newline(line):
     if line and ('\r' in line or '\n' in line):
         return True
     return False
+
 
 class Connection(object):
     """Handles connection to host."""
@@ -198,8 +205,8 @@ class Connection(object):
         assert message.send_to, "No recipients have been added"
 
         assert message.sender, (
-                "The message does not specify a sender and a default sender "
-                "has not been configured")
+            "The message does not specify a sender and a default sender "
+            "has not been configured")
 
         if message.has_bad_headers():
             raise BadHeaderError
@@ -208,11 +215,13 @@ class Connection(object):
             message.date = time.time()
 
         if self.host:
-            self.host.sendmail(sanitize_address(envelope_from or message.sender),
-                               list(sanitize_addresses(message.send_to)),
-                               message.as_bytes() if PY3 else message.as_string(),
-                               message.mail_options,
-                               message.rcpt_options)
+            self.host.sendmail(
+                sanitize_address(envelope_from or message.sender),
+                list(sanitize_addresses(message.send_to)),
+                message.as_bytes() if PY3 else message.as_string(),
+                message.mail_options,
+                message.rcpt_options
+            )
 
         email_dispatched.send(message, app=current_app._get_current_object())
 
@@ -268,7 +277,8 @@ class Message(object):
     :param recipients: list of email addresses
     :param body: plain text message
     :param html: HTML message
-    :param alts: A dict or an iterable to go through dict() that contains multipart alternatives
+    :param alts: A dict or an iterable to go through dict() that contains
+                 multipart alternatives
     :param sender: email sender address, or **MAIL_DEFAULT_SENDER** by default
     :param cc: CC list
     :param bcc: BCC list
@@ -277,7 +287,7 @@ class Message(object):
     :param date: send date
     :param charset: message character set
     :param extra_headers: A dictionary of additional headers for the message
-    :param mail_options: A list of ESMTP options to be used in MAIL FROM command
+    :param mail_options: A list of ESMTP options to be used in MAIL FROM
     :param rcpt_options:  A list of ESMTP options to be used in RCPT commands
     :param subtype:  Media subtype name for a message
     """
@@ -395,17 +405,22 @@ class Message(object):
             msg.attach(alternative)
 
         if self.subject:
-            msg['Subject'] = sanitize_subject(force_text(self.subject), encoding)
+            msg['Subject'] = sanitize_subject(force_text(self.subject),
+                                              encoding)
 
         msg['From'] = sanitize_address(self.sender, encoding)
-        msg['To'] = ', '.join(list(set(sanitize_addresses(self.recipients, encoding))))
+        msg['To'] = ', '.join(
+            list(set(sanitize_addresses(self.recipients, encoding)))
+        )
 
         msg['Date'] = formatdate(self.date, localtime=True)
         # see RFC 5322 section 3.6.4.
         msg['Message-ID'] = self.msgId
 
         if self.cc:
-            msg['Cc'] = ', '.join(list(set(sanitize_addresses(self.cc, encoding))))
+            msg['Cc'] = ', '.join(
+                list(set(sanitize_addresses(self.cc, encoding)))
+            )
 
         if self.reply_to:
             msg['Reply-To'] = sanitize_address(self.reply_to, encoding)
@@ -466,10 +481,10 @@ class Message(object):
         return self.as_bytes()
 
     def has_bad_headers(self):
-        """Checks for bad headers i.e. newlines in subject, sender or recipients.
-        RFC5322: Allows multiline CRLF with trailing whitespace (FWS) in headers
         """
-
+        Checks for bad headers i.e. newlines in subject, sender or recipients.
+        RFC5322 allows multiline CRLF with trailing whitespace (FWS) in headers
+        """
         headers = [self.sender, self.reply_to] + self.recipients
         for header in headers:
             if _has_newline(header):
@@ -490,21 +505,23 @@ class Message(object):
 
     def is_bad_headers(self):
         from warnings import warn
-        msg = 'is_bad_headers is deprecated, use the new has_bad_headers method instead.'
-        warn(DeprecationWarning(msg), stacklevel=1)
+        warn(DeprecationWarning('is_bad_headers is deprecated, use the'
+                                ' new has_bad_headers method instead.'),
+             stacklevel=1)
         return self.has_bad_headers()
 
     def send(self, connection):
-        """Verifies and sends the message."""
-
+        """
+        Verifies and sends the message.
+        """
         connection.send(self)
 
     def add_recipient(self, recipient):
-        """Adds another recipient to the message.
+        """
+        Adds another recipient to the message.
 
         :param recipient: email address of recipient.
         """
-
         self.recipients.append(recipient)
 
     def attach(self,
@@ -514,7 +531,8 @@ class Message(object):
                disposition=None,
                headers=None,
                content_id=None):
-        """Adds an attachment to the message.
+        """
+        Adds an attachment to the message.
 
         :param filename: filename of attachment
         :param content_type: file mimetype
@@ -523,14 +541,16 @@ class Message(object):
         :param content_id: content-id
         """
         self.attachments.append(
-            Attachment(filename, content_type, data, disposition, headers, content_id))
+            Attachment(filename, content_type, data, disposition,
+                       headers, content_id)
+        )
 
 
 class _MailMixin(object):
-
     @contextmanager
     def record_messages(self):
-        """Records all messages. Use in unit tests for example::
+        """
+        Records all messages. Use in unit tests for example::
 
             with mail.record_messages() as outbox:
                 response = app.test_client.get("/email-sending-view/")
@@ -557,7 +577,8 @@ class _MailMixin(object):
             email_dispatched.disconnect(_record)
 
     def send(self, message):
-        """Sends a single message instance. If TESTING is True the message will
+        """
+        Sends a single message instance. If TESTING is True the message will
         not actually be sent.
 
         :param message: a Message instance.
@@ -567,7 +588,8 @@ class _MailMixin(object):
             message.send(connection)
 
     def send_message(self, *args, **kwargs):
-        """Shortcut for send(msg).
+        """
+        Shortcut for send(msg).
 
         Takes same arguments as Message constructor.
 
@@ -577,12 +599,15 @@ class _MailMixin(object):
         self.send(Message(*args, **kwargs))
 
     def connect(self):
-        """Opens a connection to the mail host."""
+        """
+        Opens a connection to the mail host.
+        """
         app = getattr(self, "app", None) or current_app
         try:
             return Connection(app.extensions['mail'])
         except KeyError:
-            raise RuntimeError("The curent application was not configured with Flask-Mail")
+            raise RuntimeError("The curent application was"
+                               " not configured with Flask-Mail")
 
 
 class _Mail(_MailMixin):
@@ -603,7 +628,8 @@ class _Mail(_MailMixin):
 
 
 class Mail(_MailMixin):
-    """Manages email messaging
+    """
+    Manages email messaging
 
     :param app: Flask instance
     """

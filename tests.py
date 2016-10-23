@@ -4,26 +4,24 @@ from __future__ import with_statement
 
 import base64
 import email
-import unittest
-import time
 import re
-import mock
 import smtplib
 import socket
 import threading
+import time
+import unittest
 from contextlib import contextmanager
 
 from email.header import Header
-from email import charset
 
 from flask import Flask
-from flask_mail import Mail, Message, BadHeaderError, sanitize_address, PY3, \
-    Connection, fix_recipients_list
+from flask_mail import BadHeaderError, Connection, Mail, Message, PY3, \
+    sanitize_address
+import mock
 from speaklater import make_lazy_string
 
 
 class TestCase(unittest.TestCase):
-
     TESTING = True
     MAIL_DEFAULT_SENDER = "support@mysite.com"
 
@@ -41,8 +39,8 @@ class TestCase(unittest.TestCase):
     @contextmanager
     def mail_config(self, **settings):
         """
-        Context manager to alter mail config during a test and restore it after,
-        even in case of a failure.
+        Context manager to alter mail config during a test and restore it
+        after, even in case of a failure.
         """
         original = {}
         state = self.mail.state
@@ -78,7 +76,6 @@ class TestCase(unittest.TestCase):
 
 
 class TestInitialization(TestCase):
-
     def test_init_mail(self):
         mail = self.mail.init_mail(
             self.app.config,
@@ -90,11 +87,11 @@ class TestInitialization(TestCase):
 
 
 class TestMessage(TestCase):
-
     def test_initialize(self):
         msg = Message(subject="subject",
                       recipients=["to@example.com"])
-        self.assertEqual(msg.sender, self.app.extensions['mail'].default_sender)
+        self.assertEqual(msg.sender,
+                         self.app.extensions['mail'].default_sender)
         self.assertEqual(msg.recipients, ["to@example.com"])
 
     def test_recipients_properly_initialized(self):
@@ -138,7 +135,8 @@ class TestMessage(TestCase):
         self.assertEqual('tester <tester@example.com>', msg.sender)
 
     def test_default_sender_as_tuple(self):
-        self.app.extensions['mail'].default_sender = ('tester', 'tester@example.com')
+        self.app.extensions['mail'].default_sender = \
+            ('tester', 'tester@example.com')
         msg = Message(subject="testing")
         self.assertEqual('tester <tester@example.com>', msg.sender)
 
@@ -150,12 +148,15 @@ class TestMessage(TestCase):
                       body="testing")
         response = msg.as_string()
 
-        h = Header("Reply-To: %s" % sanitize_address('somebody <somebody@example.com>'))
+        addr = sanitize_address('somebody <somebody@example.com>')
+        h = Header("Reply-To: %s" % addr)
         self.assertIn(h.encode(), str(response))
 
     def test_send_without_sender(self):
         self.app.extensions['mail'].default_sender = None
-        msg = Message(subject="testing", recipients=["to@example.com"], body="testing")
+        msg = Message(subject="testing",
+                      recipients=["to@example.com"],
+                      body="testing")
         self.assertRaises(AssertionError, self.mail.send, msg)
 
     def test_send_without_recipients(self):
@@ -209,7 +210,8 @@ class TestMessage(TestCase):
         self.mail.send(msg)
         response = msg.as_string()
         self.assertIn("From: from@example.com", str(response))
-        self.assertIn("testing\r\n testing\r\n testing \r\n \ttesting", str(response))
+        self.assertIn("testing\r\n testing\r\n testing \r\n \ttesting",
+                      str(response))
 
     def test_bad_multiline_subject(self):
         msg = Message(subject="testing\r\n testing\r\n ",
@@ -304,7 +306,8 @@ class TestMessage(TestCase):
                    content_type="text/plain",
                    filename='test doc.txt')
 
-        self.assertIn('Content-Disposition: attachment; filename="test doc.txt"', msg.as_string())
+        self.assertIn('Content-Disposition: attachment;'
+                      ' filename="test doc.txt"', msg.as_string())
 
     def test_plain_message_with_unicode_attachment(self):
         msg = Message(subject="subject",
@@ -317,10 +320,14 @@ class TestMessage(TestCase):
 
         parsed = email.message_from_string(msg.as_string())
 
-        self.assertIn(re.sub(r'\s+', ' ', parsed.get_payload()[1].get('Content-Disposition')), [
-            'attachment; filename*="UTF8\'\'%C3%BCnic%C3%B6de%20%E2%86%90%E2%86%92%20%E2%9C%93.txt"',
-            'attachment; filename*=UTF8\'\'%C3%BCnic%C3%B6de%20%E2%86%90%E2%86%92%20%E2%9C%93.txt'
-            ])
+        disposition = parsed.get_payload()[1].get('Content-Disposition')
+        self.assertIn(re.sub(r'\s+', ' ', disposition), [
+            'attachment; filename*="UTF8\'\'%C3%BCnic%C3%B6de%20'
+            '%E2%86%90%E2%86%92%20%E2%9C%93.txt"',
+
+            'attachment; filename*=UTF8\'\'%C3%BCnic%C3%B6de%20'
+            '%E2%86%90%E2%86%92%20%E2%9C%93.txt'
+        ])
 
     def test_plain_message_with_ascii_converted_attachment(self):
         with self.mail_config(ascii_attachments=True):
@@ -383,7 +390,8 @@ class TestMessage(TestCase):
         plain, html = body.get_payload()
         self.assertEqual(plain.get_payload(), plain_text)
         self.assertEqual(html.get_payload(), html_text)
-        self.assertEqual(base64.b64decode(attachment.get_payload()), b'this is a test')
+        self.assertEqual(base64.b64decode(attachment.get_payload()),
+                         b'this is a test')
 
     def test_date_header(self):
         before = time.time()
@@ -414,19 +422,22 @@ class TestMessage(TestCase):
                       sender=(u"ÄÜÖ → ✓", 'from@example.com>'),
                       recipients=["to@example.com"])
 
-        self.assertIn('From: =?utf-8?b?w4TDnMOWIOKGkiDinJM=?= <from@example.com>', msg.as_string())
+        self.assertIn('From: =?utf-8?b?w4TDnMOWIOKGkiDinJM=?='
+                      ' <from@example.com>', msg.as_string())
 
     def test_unicode_sender(self):
         msg = Message(subject="subject",
                       sender=u'ÄÜÖ → ✓ <from@example.com>>',
                       recipients=["to@example.com"])
 
-        self.assertIn('From: =?utf-8?b?w4TDnMOWIOKGkiDinJM=?= <from@example.com>', msg.as_string())
+        self.assertIn('From: =?utf-8?b?w4TDnMOWIOKGkiDinJM=?='
+                      ' <from@example.com>', msg.as_string())
 
     def test_unicode_headers(self):
         msg = Message(subject="subject",
                       sender=u'ÄÜÖ → ✓ <from@example.com>',
-                      recipients=[u"Ä <t1@example.com>", u"Ü <t2@example.com>"],
+                      recipients=[u"Ä <t1@example.com>",
+                                  u"Ü <t2@example.com>"],
                       cc=[u"Ö <cc@example.com>"])
 
         response = msg.as_string()
@@ -434,10 +445,11 @@ class TestMessage(TestCase):
         a2 = sanitize_address(u"Ü <t2@example.com>")
         h1_a = Header("To: %s, %s" % (a1, a2))
         h1_b = Header("To: %s, %s" % (a2, a1))
-        h2 = Header("From: %s" % sanitize_address(u"ÄÜÖ → ✓ <from@example.com>"))
+        a3 = sanitize_address(u"ÄÜÖ → ✓ <from@example.com>")
+        h2 = Header("From: %s" % a3)
         h3 = Header("Cc: %s" % sanitize_address(u"Ö <cc@example.com>"))
 
-        # Ugly, but there's no guaranteed order of the recipieints in the header
+        # Ugly, but there's no guaranteed order of the recipients in the header
         try:
             self.assertIn(h1_a.encode(), response)
         except AssertionError:
@@ -452,10 +464,12 @@ class TestMessage(TestCase):
                       recipients=["to@example.com"])
         self.assertIn(b'=?utf-8?q?s=C3=BCbject?=', msg.as_bytes())
 
-        msg = Message(subject=make_lazy_string(lambda a: a, u"[Foo Bar] Voici vos paramètres d'accès à"),
+        subject = u"[Foo Bar] Voici vos paramètres d'accès à"
+        msg = Message(subject=make_lazy_string(lambda a: a, subject),
                       sender='from@example.com',
                       recipients=["to@example.com"])
-        self.assertIn(b'=?utf-8?b?W0ZvbyBCYXJdIFZvaWNpIHZvcyBwYXJhbcOodHJlcyBkJ2FjY8OocyDDoA==?=', msg.as_bytes())
+        self.assertIn(b'=?utf-8?b?W0ZvbyBCYXJdIFZvaWNpIHZvcyBwYX'
+                      b'JhbcOodHJlcyBkJ2FjY8OocyDDoA==?=', msg.as_bytes())
 
     def test_extra_headers(self):
         msg = Message(sender="from@example.com",
@@ -473,7 +487,8 @@ class TestMessage(TestCase):
 
         # ascii body
         msg.body = "normal ascii text"
-        self.assertIn('Content-Type: text/plain; charset="us-ascii"', msg.as_string())
+        self.assertIn('Content-Type: text/plain; charset="us-ascii"',
+                      msg.as_string())
 
         # ascii html
         msg = Message(sender="from@example.com",
@@ -482,22 +497,26 @@ class TestMessage(TestCase):
                       charset='us-ascii')
         msg.body = None
         msg.html = "<html><h1>hello</h1></html>"
-        self.assertIn('Content-Type: text/html; charset="us-ascii"', msg.as_string())
+        self.assertIn('Content-Type: text/html; charset="us-ascii"',
+                      msg.as_string())
 
         # unicode body
         msg = Message(sender="from@example.com",
                       subject="subject",
                       recipients=["foo@bar.com"])
         msg.body = u"ünicöde ←→ ✓"
-        self.assertIn('Content-Type: text/plain; charset="utf-8"', msg.as_string())
+        self.assertIn('Content-Type: text/plain; charset="utf-8"',
+                      msg.as_string())
 
         # unicode body and unicode html
         msg = Message(sender="from@example.com",
                       subject="subject",
                       recipients=["foo@bar.com"])
         msg.html = u"ünicöde ←→ ✓"
-        self.assertIn('Content-Type: text/plain; charset="utf-8"', msg.as_string())
-        self.assertIn('Content-Type: text/html; charset="utf-8"', msg.as_string())
+        self.assertIn('Content-Type: text/plain; charset="utf-8"',
+                      msg.as_string())
+        self.assertIn('Content-Type: text/html; charset="utf-8"',
+                      msg.as_string())
 
         # unicode body and attachments
         msg = Message(sender="from@example.com",
@@ -505,7 +524,8 @@ class TestMessage(TestCase):
                       recipients=["foo@bar.com"])
         msg.html = None
         msg.attach(data=b"foobar", content_type='text/csv')
-        self.assertIn('Content-Type: text/plain; charset="utf-8"', msg.as_string())
+        self.assertIn('Content-Type: text/plain; charset="utf-8"',
+                      msg.as_string())
 
         # unicode sender as tuple
         msg = Message(sender=(u"送信者", "from@example.com"),
@@ -520,7 +540,8 @@ class TestMessage(TestCase):
         self.assertNotIn('Subject: =?utf-8?', msg.as_string())
         self.assertIn('Reply-To: =?iso-2022-jp?', msg.as_string())
         self.assertNotIn('Reply-To: =?utf-8?', msg.as_string())
-        self.assertIn('Content-Type: text/plain; charset="iso-2022-jp"', msg.as_string())
+        self.assertIn('Content-Type: text/plain; charset="iso-2022-jp"',
+                      msg.as_string())
 
         # unicode subject sjis
         msg = Message(sender="from@example.com",
@@ -529,7 +550,8 @@ class TestMessage(TestCase):
                       charset='shift_jis')  # japanese
         msg.body = u'内容'
         self.assertIn('Subject: =?iso-2022-jp?', msg.as_string())
-        self.assertIn('Content-Type: text/plain; charset="iso-2022-jp"', msg.as_string())
+        self.assertIn('Content-Type: text/plain; charset="iso-2022-jp"',
+                      msg.as_string())
 
         # unicode subject utf-8
         msg = Message(sender="from@example.com",
@@ -538,7 +560,8 @@ class TestMessage(TestCase):
                       charset='utf-8')
         msg.body = u'内容'
         self.assertIn('Subject: subject', msg.as_string())
-        self.assertIn('Content-Type: text/plain; charset="utf-8"', msg.as_string())
+        self.assertIn('Content-Type: text/plain; charset="utf-8"',
+                      msg.as_string())
 
         # ascii subject
         msg = Message(sender="from@example.com",
@@ -547,7 +570,8 @@ class TestMessage(TestCase):
                       charset='us-ascii')
         msg.body = "normal ascii text"
         self.assertNotIn('Subject: =?us-ascii?', msg.as_string())
-        self.assertIn('Content-Type: text/plain; charset="us-ascii"', msg.as_string())
+        self.assertIn('Content-Type: text/plain; charset="us-ascii"',
+                      msg.as_string())
 
         # default charset
         msg = Message(sender="from@example.com",
@@ -555,7 +579,8 @@ class TestMessage(TestCase):
                       recipients=["foo@bar.com"])
         msg.body = "normal ascii text"
         self.assertNotIn('Subject: =?', msg.as_string())
-        self.assertIn('Content-Type: text/plain; charset="utf-8"', msg.as_string())
+        self.assertIn('Content-Type: text/plain; charset="utf-8"',
+                      msg.as_string())
 
     def test_empty_subject_header(self):
         msg = Message(sender="from@example.com",
@@ -580,10 +605,9 @@ class TestMessage(TestCase):
                    content_type="text/plain")
         self.assertIn('Content-Type: multipart/related', msg.as_string())
 
+
 class TestMail(TestCase):
-
     def test_send(self):
-
         with self.mail.record_messages() as outbox:
             msg = Message(subject="testing",
                           recipients=["tester@example.com"],
@@ -592,10 +616,10 @@ class TestMail(TestCase):
             self.assertIsNotNone(msg.date)
             self.assertEqual(len(outbox), 1)
             sent_msg = outbox[0]
-            self.assertEqual(msg.sender, self.app.extensions['mail'].default_sender)
+            default_sender = self.app.extensions['mail'].default_sender
+            self.assertEqual(msg.sender, default_sender)
 
     def test_send_message(self):
-
         with self.mail.record_messages() as outbox:
             self.mail.send_message(subject="testing",
                                    recipients=["tester@example.com"],
@@ -605,11 +629,11 @@ class TestMail(TestCase):
             self.assertEqual(msg.subject, "testing")
             self.assertEqual(msg.recipients, ["tester@example.com"])
             self.assertEqual(msg.body, "test")
-            self.assertEqual(msg.sender, self.app.extensions['mail'].default_sender)
+            default_sender = self.app.extensions['mail'].default_sender
+            self.assertEqual(msg.sender, default_sender)
 
 
 class TestConnection(TestCase):
-
     def test_send_message(self):
         with self.mail.record_messages() as outbox:
             with self.mail.connect() as conn:
@@ -618,7 +642,8 @@ class TestConnection(TestCase):
                                   body="testing")
             self.assertEqual(len(outbox), 1)
             sent_msg = outbox[0]
-            self.assertEqual(sent_msg.sender, self.app.extensions['mail'].default_sender)
+            default_sender = self.app.extensions['mail'].default_sender
+            self.assertEqual(sent_msg.sender, default_sender)
 
     def test_send_single(self):
         with self.mail.record_messages() as outbox:
@@ -632,7 +657,8 @@ class TestConnection(TestCase):
             self.assertEqual(sent_msg.subject, "testing")
             self.assertEqual(sent_msg.recipients, ["to@example.com"])
             self.assertEqual(sent_msg.body, "testing")
-            self.assertEqual(sent_msg.sender, self.app.extensions['mail'].default_sender)
+            default_sender = self.app.extensions['mail'].default_sender
+            self.assertEqual(sent_msg.sender, default_sender)
 
     def test_send_many(self):
         with self.mail.record_messages() as outbox:
@@ -644,11 +670,14 @@ class TestConnection(TestCase):
                     conn.send(msg)
             self.assertEqual(len(outbox), 100)
             sent_msg = outbox[0]
-            self.assertEqual(sent_msg.sender, self.app.extensions['mail'].default_sender)
+            default_sender = self.app.extensions['mail'].default_sender
+            self.assertEqual(sent_msg.sender, default_sender)
 
     def test_send_without_sender(self):
         self.app.extensions['mail'].default_sender = None
-        msg = Message(subject="testing", recipients=["to@example.com"], body="testing")
+        msg = Message(subject="testing",
+                      recipients=["to@example.com"],
+                      body="testing")
         with self.mail.connect() as conn:
             self.assertRaises(AssertionError, conn.send, msg)
 
@@ -741,7 +770,8 @@ class TestConnection(TestCase):
             mock_host.starttls.return_value = (501, "Syntax error (testing)")
             with mock.patch.object(self.mail, "use_tls", True):
                 self.assertTrue(self.mail.use_tls)
-                self.assertRaises(smtplib.SMTPResponseException, Connection(self.mail).configure_host)
+                self.assertRaises(smtplib.SMTPResponseException,
+                                  Connection(self.mail).configure_host)
 
 
 class TestAgainstLocalServer(TestCase):
