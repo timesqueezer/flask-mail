@@ -5,14 +5,21 @@ python:
   - "2.7"
   - "3.3"
   - "3.4"
+  - "3.5"
+  - "3.6"
   - "pypy"
 
 install:
   - pip install . --quiet
   - pip install nose --quiet
   - pip install speaklater --quiet
+  - pip install flake8 --quiet
 
-script: nosetests
+before_script:
+  - flake8 .
+
+script:
+  - nosetests
 
 branches:
   only:

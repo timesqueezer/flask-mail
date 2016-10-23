@@ -1,7 +1,7 @@
 Flask-Mail
 ==========
 
-.. image:: https://secure.travis-ci.org/mattupstate/flask-mail.png?branch=master
+.. image:: https://travis-ci.org/drdaeman/flask-mail.png?branch=master
 
 Flask-Mail is a Flask extension providing simple email sending capabilities.
 
