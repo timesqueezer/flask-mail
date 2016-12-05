@@ -214,8 +214,9 @@ class Connection(object):
         if message.date is None:
             message.date = time.time()
 
+        ret = None
         if self.host:
-            self.host.sendmail(
+            ret = self.host.sendmail(
                 sanitize_address(envelope_from or message.sender),
                 list(sanitize_addresses(message.send_to)),
                 message.as_bytes() if PY3 else message.as_string(),
@@ -232,6 +233,8 @@ class Connection(object):
             if self.host:
                 self.host.quit()
                 self.host = self.configure_host()
+                
+        return ret
 
     def send_message(self, *args, **kwargs):
         """Shortcut for send(msg).
