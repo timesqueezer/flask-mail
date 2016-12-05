@@ -517,7 +517,7 @@ class Message(object):
         """
         Verifies and sends the message.
         """
-        connection.send(self)
+        return connection.send(self)
 
     def add_recipient(self, recipient):
         """
