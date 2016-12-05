@@ -244,7 +244,7 @@ class Connection(object):
         :versionadded: 0.3.5
         """
 
-        self.send(Message(*args, **kwargs))
+        return self.send(Message(*args, **kwargs))
 
 
 class BadHeaderError(Exception):
