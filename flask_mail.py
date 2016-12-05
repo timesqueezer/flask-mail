@@ -588,7 +588,7 @@ class _MailMixin(object):
         """
 
         with self.connect() as connection:
-            message.send(connection)
+            return message.send(connection)
 
     def send_message(self, *args, **kwargs):
         """
