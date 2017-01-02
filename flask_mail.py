@@ -233,7 +233,7 @@ class Connection(object):
             if self.host:
                 self.host.quit()
                 self.host = self.configure_host()
-                
+
         return ret
 
     def send_message(self, *args, **kwargs):
