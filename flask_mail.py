@@ -214,8 +214,9 @@ class Connection(object):
         if message.date is None:
             message.date = time.time()
 
+        ret = None
         if self.host:
-            self.host.sendmail(
+            ret = self.host.sendmail(
                 sanitize_address(envelope_from or message.sender),
                 list(sanitize_addresses(message.send_to)),
                 message.as_bytes() if PY3 else message.as_string(),
@@ -232,6 +233,8 @@ class Connection(object):
             if self.host:
                 self.host.quit()
                 self.host = self.configure_host()
+                
+        return ret
 
     def send_message(self, *args, **kwargs):
         """Shortcut for send(msg).
@@ -241,7 +244,7 @@ class Connection(object):
         :versionadded: 0.3.5
         """
 
-        self.send(Message(*args, **kwargs))
+        return self.send(Message(*args, **kwargs))
 
 
 class BadHeaderError(Exception):
@@ -514,7 +517,7 @@ class Message(object):
         """
         Verifies and sends the message.
         """
-        connection.send(self)
+        return connection.send(self)
 
     def add_recipient(self, recipient):
         """
@@ -585,7 +588,7 @@ class _MailMixin(object):
         """
 
         with self.connect() as connection:
-            message.send(connection)
+            return message.send(connection)
 
     def send_message(self, *args, **kwargs):
         """
@@ -596,7 +599,7 @@ class _MailMixin(object):
         :versionadded: 0.3.5
         """
 
-        self.send(Message(*args, **kwargs))
+        return self.send(Message(*args, **kwargs))
 
     def connect(self):
         """
