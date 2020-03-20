@@ -189,7 +189,7 @@ class Connection(object):
         if self.mail.use_tls:
             (resp, reply) = host.starttls()
             # Fix CVE-2016-0772 on old Python installations
-            if resp != 200:
+            if resp < 200 or resp >= 300:
                 raise smtplib.SMTPResponseException(resp, reply)
         if self.mail.username and self.mail.password:
             host.login(self.mail.username, self.mail.password)
